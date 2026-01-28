@@ -2,15 +2,15 @@ package com.example.reelstracker.data
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 
 @Dao
 interface ReelDao {
 
-    @Insert
-    suspend fun insertSession(session: ReelSessionEntity)
+    @Query("SELECT * FROM daily_stats WHERE date = :date LIMIT 1")
+    fun getStatsForDate(date: String): ReelSessionEntity?
 
-    // 👇 THIS IS WHAT WE SHOW
-    @Query("SELECT COUNT(*) FROM reel_sessions")
-    suspend fun getTotalReelsWatched(): Int
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertOrUpdate(stats: ReelSessionEntity)
 }

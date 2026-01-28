@@ -1,14 +1,11 @@
 package com.example.reelstracker
 
 import android.accessibilityservice.AccessibilityService
-import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.util.Log
 import com.example.reelstracker.data.AppDatabase
 import com.example.reelstracker.data.ReelSessionEntity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import kotlin.math.abs
 
@@ -16,11 +13,10 @@ class ReelsAccessibilityService : AccessibilityService() {
 
     private val INSTAGRAM_PACKAGE = "com.instagram.android"
 
-    private var reelCount = 0
-    private var lastReelTimestamp = 0L
-
     private val MIN_SCROLL_DISTANCE = 250
     private val MIN_REEL_INTERVAL_MS = 1200
+
+    private var lastReelTimestamp = 0L
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
@@ -36,32 +32,36 @@ class ReelsAccessibilityService : AccessibilityService() {
         val now = System.currentTimeMillis()
         if (now - lastReelTimestamp < MIN_REEL_INTERVAL_MS) return
 
-        // count reel
-        reelCount++
-
-        if (lastReelTimestamp != 0L) {
-            saveSession(lastReelTimestamp, now, reelCount)
-        }
-
         lastReelTimestamp = now
-
-        Log.d("REELS_TRACKER", "Reels watched = $reelCount")
+        saveTodayReel()
     }
 
-    private fun saveSession(start: Long, end: Long, reelNumber: Int) {
-        val session = ReelSessionEntity(
-            startTime = start,
-            endTime = end,
-            durationMs = end - start,
-            date = LocalDate.now().toString(),
-            reelNumber = reelNumber
-        )
+    private fun saveTodayReel() {
+        val today = LocalDate.now().toString()
 
-        CoroutineScope(Dispatchers.IO).launch {
-            AppDatabase.get(this@ReelsAccessibilityService)
-                .reelDao()
-                .insertSession(session)
-        }
+        Thread {
+            val dao = AppDatabase.get(this).reelDao()
+            val existing = dao.getStatsForDate(today)
+
+            val updated = if (existing == null) {
+                ReelSessionEntity(
+                    date = today,
+                    reelCount = 1,
+                    totalWatchTimeMs = 0
+                )
+            } else {
+                existing.copy(
+                    reelCount = existing.reelCount + 1
+                )
+            }
+
+            dao.insertOrUpdate(updated)
+
+            Log.d(
+                "REELS_TRACKER",
+                "Today reels = ${updated.reelCount}"
+            )
+        }.start()
     }
 
     private fun isCommentScroll(
@@ -70,11 +70,13 @@ class ReelsAccessibilityService : AccessibilityService() {
     ): Boolean {
         val className = node.className?.toString()?.lowercase() ?: ""
         if (className.contains("recyclerview")) return true
+        if (className.contains("bottomsheet") || className.contains("dialog")) return true
 
         val texts = event.text.joinToString(" ").lowercase()
         if (
-            texts.contains("comment") ||
-            texts.contains("reply")
+            texts.contains("add a comment") ||
+            texts.contains("comments") ||
+            texts.contains("replies")
         ) return true
 
         return false

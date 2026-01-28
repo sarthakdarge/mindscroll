@@ -7,7 +7,8 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [ReelSessionEntity::class],
-    version = 1
+    version = 2, // 🔴 incremented from 1 → 2
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
@@ -23,7 +24,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "reels_db"
-                ).build().also { INSTANCE = it }
+                )
+                    .fallbackToDestructiveMigration() // 🔴 important
+                    .build()
+                    .also { INSTANCE = it }
             }
         }
     }
