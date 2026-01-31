@@ -1,54 +1,67 @@
 package com.example.reelstracker.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+// ☀️ Light — minimal, calm
+private val LightColorScheme = lightColorScheme(
+    primary = Color(0xFF3A7AFE),          // Soft blue accent
+    onPrimary = Color.White,
+
+    background = Color(0xFFF8F9FA),
+    onBackground = Color(0xFF111111),
+
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF111111),
+
+    surfaceVariant = Color(0xFFF1F3F5),   // Cards
+    onSurfaceVariant = Color(0xFF444444),
+
+    secondaryContainer = Color(0xFFF1F3F5),
+    onSecondaryContainer = Color(0xFF222222),
+
+    primaryContainer = Color(0xFFF0F5FF),
+    onPrimaryContainer = Color(0xFF1A3D7C),
+
+    error = Color(0xFFDC3545),
+    onError = Color.White
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+// 🌙 Dark — true minimalist dark
+private val DarkColorScheme = darkColorScheme(
+    primary = Color(0xFF8BB2FF),
+    onPrimary = Color.Black,
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    background = Color(0xFF0E0F12),
+    onBackground = Color(0xFFEDEDED),
+
+    surface = Color(0xFF16181D),
+    onSurface = Color(0xFFEDEDED),
+
+    surfaceVariant = Color(0xFF1E2026),
+    onSurfaceVariant = Color(0xFFB0B0B0),
+
+    secondaryContainer = Color(0xFF1E2026),
+    onSecondaryContainer = Color(0xFFEDEDED),
+
+    primaryContainer = Color(0xFF1A2336),
+    onPrimaryContainer = Color(0xFFD6E3FF),
+
+    error = Color(0xFFFF6B6B),
+    onError = Color.Black
 )
 
 @Composable
 fun ReelsTrackerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // ❌ disable Material You (important)
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

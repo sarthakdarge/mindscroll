@@ -1,47 +1,58 @@
 package com.example.reelstracker
 
 import android.accessibilityservice.AccessibilityService
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.example.reelstracker.data.AppDatabase
-import com.example.reelstracker.data.ReelSessionEntity
 import com.example.reelstracker.data.ReelHistoryManager
-import com.example.reelstracker.data.ReelSessionTracker
+import com.example.reelstracker.data.ReelSessionEntity
 import java.time.LocalDate
 
 class ReelsAccessibilityService : AccessibilityService() {
 
     private val INSTAGRAM_PACKAGE = "com.instagram.android"
-    private val MIN_REEL_INTERVAL_MS = 1500L
 
-    private var lastReelTimestamp = 0L
+    // ⏱ Watch time
+    private val WATCH_TICK_MS = 2000L
+    private var isInstagramActive = false
 
-    // ⏱ Instagram session tracker
-    private lateinit var sessionTracker: ReelSessionTracker
-
-    override fun onServiceConnected() {
-        super.onServiceConnected()
-        sessionTracker = ReelSessionTracker(applicationContext)
-        Log.d("MINDSCROLL_SESSION", "Service connected")
+    private val handler = Handler(Looper.getMainLooper())
+    private val watchRunnable = object : Runnable {
+        override fun run() {
+            if (isInstagramActive) {
+                addWatchTime(WATCH_TICK_MS)
+                handler.postDelayed(this, WATCH_TICK_MS)
+            }
+        }
     }
+
+    // 🎞 Reel counting
+    private val MIN_REEL_INTERVAL_MS = 1500L
+    private var lastReelTimestamp = 0L
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
         val packageName = event.packageName?.toString()
 
-        // 🟢 Instagram in foreground → start session
+        // 🟢 Instagram opened
         if (packageName == INSTAGRAM_PACKAGE) {
-            sessionTracker.startSession()
+            if (!isInstagramActive) {
+                isInstagramActive = true
+                handler.post(watchRunnable)
+                Log.d("MINDSCROLL_TIME", "Instagram foreground → timer started")
+            }
         }
-        // 🔴 Left Instagram → end session
+        // 🔴 Left Instagram
         else {
-            sessionTracker.endSession()
+            stopWatchTimer()
             return
         }
 
-        // 🎯 Reel counting ONLY on scroll events
+        // 🎯 Reel counting only on scroll
         if (event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) return
 
         val source = event.source ?: return
@@ -54,6 +65,28 @@ class ReelsAccessibilityService : AccessibilityService() {
         saveTodayReel()
     }
 
+    private fun stopWatchTimer() {
+        if (isInstagramActive) {
+            isInstagramActive = false
+            handler.removeCallbacks(watchRunnable)
+            Log.d("MINDSCROLL_TIME", "Instagram background → timer stopped")
+        }
+    }
+
+    // 🕒 Add watch time
+    private fun addWatchTime(durationMs: Long) {
+        Thread {
+            ReelHistoryManager(applicationContext)
+                .addSessionTime(durationMs)
+
+            Log.d(
+                "MINDSCROLL_TIME",
+                "Added watch time: ${durationMs / 1000}s"
+            )
+        }.start()
+    }
+
+    // 🎞 Save reel count
     private fun saveTodayReel() {
         val today = LocalDate.now().toString()
 
@@ -74,14 +107,16 @@ class ReelsAccessibilityService : AccessibilityService() {
             }
 
             dao.insertOrUpdate(updated)
-
-            Log.d("REELS_TRACKER", "Reel counted → total = ${updated.reelCount}")
-
-            // 📦 7-day history
             ReelHistoryManager(applicationContext).incrementReel()
+
+            Log.d(
+                "REELS_TRACKER",
+                "Reel counted → total = ${updated.reelCount}"
+            )
         }.start()
     }
 
+    // 🚫 Ignore comments
     private fun isCommentScroll(
         node: AccessibilityNodeInfo,
         event: AccessibilityEvent
@@ -105,11 +140,11 @@ class ReelsAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
-        sessionTracker.endSession()
+        stopWatchTimer()
     }
 
     override fun onDestroy() {
-        sessionTracker.endSession()
+        stopWatchTimer()
         super.onDestroy()
     }
 }
