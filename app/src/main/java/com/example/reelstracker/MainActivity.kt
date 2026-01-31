@@ -54,7 +54,10 @@ fun TodayStatsScreen() {
         dailyLimitMin = (limitManager.getDailyLimit() / 60000).toInt()
 
         while (true) {
-            val today = historyManager.getLast7Days().lastOrNull()
+            val todayDate = java.time.LocalDate.now().toString()
+            val today = historyManager.getLast7Days()
+                .find { it.date == todayDate }
+
             reelCount = today?.reelCount ?: 0
             watchTimeMs = today?.timeSpentMs ?: 0L
 
